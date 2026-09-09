@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Academy Master - Dashboard de Alumnos, WhatsApp & Facturación</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Font Awesome para Iconografía -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- ExcelJS para exportación idéntica con estilos, colores y fórmulas reales -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    /* Estilos personalizados para scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white pb-20">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Header de Navegación -->
+  <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <div class="flex items-center gap-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white text-xl">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white">
+              AI Academy <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Master</span>
+            </h1>
+            <span class="text-[10px] uppercase font-bold tracking-widest bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+              Live Hub
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">
+            Gestión de Alumnos de IA • Conexión WhatsApp Directa • Facturación en Tiempo Real
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Botón Exportar Excel -->
+        <button
+          id="btn-export-excel"
+          onclick="exportToExcel()"
+          class="flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-sm font-semibold transition-all shadow-sm hover:shadow-emerald-900/20 active:scale-95"
+          title="Descargar reporte Excel con diseño visual y fórmulas"
+        >
+          <i id="export-icon" class="fa-solid fa-file-excel text-emerald-400"></i>
+          <span class="hidden md:inline">Descargar Excel Idéntico</span>
+          <span class="md:hidden">Excel</span>
+        </button>
+
+        <!-- Botón Nuevo Alumno -->
+        <button
+          onclick="openStudentModal()"
+          class="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 transition-all active:scale-95"
+        >
+          <i class="fa-solid fa-user-plus text-xs"></i>
+          <span>Nuevo Alumno</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+    
+    <!-- TARJETAS DE RESUMEN KPI (Métricas en Vivo) -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <!-- Card 1: Facturación Total -->
+      <div class="relative overflow-hidden bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm hover:border-slate-700 transition-all group">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all"></div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Facturación Mensual</span>
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
+            <i class="fa-solid fa-dollar-sign"></i>
+          </div>
+        </div>
+        <div class="mt-4">
+          <div id="kpi-total-revenue" class="text-2xl sm:text-3xl font-black text-white tracking-tight">$0</div>
+          <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+            <i class="fa-solid fa-chart-line text-indigo-400"></i>
+            <span id="kpi-avg-ticket">Ticket Promedio: $0/alumno</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Card 2: Cobrado vs Pendiente -->
+      <div class="relative overflow-hidden bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm hover:border-slate-700 transition-all group">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Ingresos Cobrados</span>
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+        <div class="mt-4">
+          <div id="kpi-collected-revenue" class="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">$0</div>
+          <div class="mt-2 w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div id="kpi-progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-slate-400 mt-1.5">
+            <span id="kpi-rate-text">0% cobrado</span>
+            <span id="kpi-pending-revenue" class="text-amber-400 font-medium">Pendiente: $0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Total Alumnos Activos -->
+      <div class="relative overflow-hidden bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm hover:border-slate-700 transition-all group">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all"></div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Alumnos Activos</span>
+          <div class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
+            <i class="fa-solid fa-users"></i>
+          </div>
+        </div>
+        <div class="mt-4">
+          <div class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <span id="kpi-total-students">0</span> <span class="text-sm font-normal text-slate-400">estudiantes</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+            <i class="fa-solid fa-user-check text-cyan-400"></i>
+            <span id="kpi-paid-count">0 al día con la cuota</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Card 4: Modalidad Cursado -->
+      <div class="relative overflow-hidden bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm hover:border-slate-700 transition-all group">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all"></div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Modalidad de Cursado</span>
+          <div class="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+        </div>
+        <div class="mt-4 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="flex items-center gap-1.5 text-slate-300">
+              <i class="fa-solid fa-laptop text-indigo-400"></i> Virtual
+            </span>
+            <span id="kpi-virtual-count" class="font-bold text-white">0 (0%)</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="flex items-center gap-1.5 text-slate-300">
+              <i class="fa-solid fa-building text-purple-400"></i> Presencial
+            </span>
+            <span id="kpi-presencial-count" class="font-bold text-white">0 (0%)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BARRA DE BÚSQUEDA Y FILTROS -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-sm space-y-4">
+      <div class="flex flex-col lg:flex-row gap-3.5 items-stretch lg:items-center justify-between">
+        <!-- Buscador -->
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <input
+            id="search-input"
+            type="text"
+            placeholder="Buscar por nombre, teléfono, notas o proyectos de IA..."
+            oninput="handleSearch(this.value)"
+            class="w-full pl-10 pr-10 py-2.5 bg-slate-950/70 border border-slate-700/70 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+          />
+          <button
+            id="clear-search-btn"
+            onclick="clearSearch()"
+            class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Filtros desplegables -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <!-- Nivel -->
+          <select
+            id="filter-level"
+            onchange="handleFilterChange()"
+            class="px-3 py-2.5 bg-slate-950/70 border border-slate-700/70 rounded-xl text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer"
+          >
+            <option value="Todos">Todos los Niveles</option>
+            <option value="Período 1 (Fundamentos IA)">Período 1 (Fundamentos IA)</option>
+            <option value="Período 2 (Prompts & Workflows)">Período 2 (Prompts & Workflows)</option>
+            <option value="1° Trimestre (Agentes IA)">1° Trimestre (Agentes IA)</option>
+            <option value="2° Trimestre (Modelos & RAG Avanzado)">2° Trimestre (Modelos & RAG Avanzado)</option>
+          </select>
+
+          <!-- Modalidad -->
+          <select
+            id="filter-modality"
+            onchange="handleFilterChange()"
+            class="px-3 py-2.5 bg-slate-950/70 border border-slate-700/70 rounded-xl text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer"
+          >
+            <option value="Todos">Todas Modalidades</option>
+            <option value="Virtual">Virtual</option>
+            <option value="Presencial">Presencial</option>
+          </select>
+
+          <!-- Estado de Pago -->
+          <select
+            id="filter-status"
+            onchange="handleFilterChange()"
+            class="px-3 py-2.5 bg-slate-950/70 border border-slate-700/70 rounded-xl text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer col-span-2 sm:col-span-1"
+          >
+            <option value="Todos">Todos los Estados</option>
+            <option value="Pagado">Pagado / Al día</option>
+            <option value="Pendiente">Pendiente de Pago</option>
+          </select>
+        </div>
+
+        <!-- Selector de Vista (Tabla vs Cards) -->
+        <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 self-end lg:self-auto">
+          <button
+            id="view-table-btn"
+            onclick="switchView('table')"
+            class="p-2 rounded-lg bg-indigo-600 text-white shadow-md transition-all text-xs flex items-center justify-center w-8 h-8"
+            title="Vista de Tabla"
+          >
+            <i class="fa-solid fa-list"></i>
+          </button>
+          <button
+            id="view-cards-btn"
+            onclick="switchView('cards')"
+            class="p-2 rounded-lg text-slate-400 hover:text-white transition-all text-xs flex items-center justify-center w-8 h-8"
+            title="Vista de Cuadrícula"
+          >
+            <i class="fa-solid fa-grip"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTENEDOR DE CONTENIDO (Tabla o Cuadrícula) -->
+    <div id="students-container"></div>
+  </main>
+
+  <!-- ==================== MODAL: REGISTRAR / EDITAR ALUMNO ==================== -->
+  <div id="student-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+      <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <h3 id="modal-form-title" class="text-lg font-bold text-white">Registrar Nuevo Alumno de IA</h3>
+        </div>
+        <button onclick="closeStudentModal()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="student-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+        <input type="hidden" id="form-student-id">
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            Nombre Completo *
+          </label>
+          <input
+            type="text"
+            id="form-name"
+            required
+            placeholder="Ej: Julieta Gómez"
+            class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            Número de Teléfono / WhatsApp (con código de país) *
+          </label>
+          <input
+            type="text"
+            id="form-phone"
+            required
+            placeholder="Ej: +54 9 11 4589 1234 o 5493416789900"
+            class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+          />
+          <span class="text-[11px] text-slate-500 mt-1 block">
+            Este número se vinculará directamente con los botones de WhatsApp de un clic.
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Nivel de Inteligencia Artificial
+            </label>
+            <select
+              id="form-level"
+              class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="Período 1 (Fundamentos IA)">Período 1 (Fundamentos IA)</option>
+              <option value="Período 2 (Prompts & Workflows)">Período 2 (Prompts & Workflows)</option>
+              <option value="1° Trimestre (Agentes IA)">1° Trimestre (Agentes IA)</option>
+              <option value="2° Trimestre (Modelos & RAG Avanzado)">2° Trimestre (Modelos & RAG Avanzado)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Modalidad de Cursado
+            </label>
+            <select
+              id="form-modality"
+              class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="Virtual">Virtual</option>
+              <option value="Presencial">Presencial</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Cuota Mensual ($)
+            </label>
+            <input
+              type="number"
+              id="form-cost"
+              min="0"
+              step="500"
+              value="45000"
+              required
+              class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Estado de Pago Inicial
+            </label>
+            <select
+              id="form-status"
+              class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="Pagado">Pagado / Al día</option>
+              <option value="Pendiente" selected>Pendiente de Pago</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            Notas / Proyecto de IA del Alumno
+          </label>
+          <textarea
+            id="form-notes"
+            rows="2"
+            placeholder="Ej: Automatización de atención al cliente con LangChain..."
+            class="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500 resize-none"
+          ></textarea>
+        </div>
+
+        <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
+          <button
+            type="button"
+            onclick="closeStudentModal()"
+            class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
+          >
+            Guardar Alumno
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: LANZADOR DIRECTO DE WHATSAPP ==================== -->
+  <div id="whatsapp-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+      <div class="px-6 py-5 bg-gradient-to-r from-emerald-950/40 to-slate-900 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-lg">
+            <i class="fa-brands fa-whatsapp"></i>
+          </div>
+          <div>
+            <h3 id="wa-modal-name" class="text-base font-bold text-white flex items-center gap-2">
+              WhatsApp a Alumno
+            </h3>
+            <p id="wa-modal-phone" class="text-xs text-emerald-400 font-medium"></p>
+          </div>
+        </div>
+        <button onclick="closeWhatsAppModal()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            Selecciona una Plantilla Inteligente:
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              id="tpl-btn-reminder"
+              onclick="selectTemplate('reminder')"
+              class="p-2.5 rounded-xl border text-left text-xs font-semibold transition-all bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+            >
+              💰 Recordatorio Pago
+            </button>
+            <button
+              type="button"
+              id="tpl-btn-class_access"
+              onclick="selectTemplate('class_access')"
+              class="p-2.5 rounded-xl border text-left text-xs font-semibold transition-all bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
+            >
+              🤖 Acceso a Clase IA
+            </button>
+            <button
+              type="button"
+              id="tpl-btn-project_feedback"
+              onclick="selectTemplate('project_feedback')"
+              class="p-2.5 rounded-xl border text-left text-xs font-semibold transition-all bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
+            >
+              💡 Feedback Proyecto
+            </button>
+            <button
+              type="button"
+              id="tpl-btn-custom"
+              onclick="selectTemplate('custom')"
+              class="p-2.5 rounded-xl border text-left text-xs font-semibold transition-all bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
+            >
+              ✍️ Mensaje Libre
+            </button>
+          </div>
+        </div>
+
+        <div id="custom-text-container" class="hidden">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            Escribe tu mensaje:
+          </label>
+          <textarea
+            id="wa-custom-text"
+            rows="3"
+            placeholder="Escribe lo que deseas comunicarle..."
+            oninput="updatePreviewMessage()"
+            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+          ></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            Vista previa del mensaje a enviar:
+          </label>
+          <div id="wa-preview-text" class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-200 whitespace-pre-wrap leading-relaxed"></div>
+        </div>
+
+        <div class="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
+          <button
+            type="button"
+            onclick="closeWhatsAppModal()"
+            class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onclick="sendWhatsAppDirect()"
+            class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/30 transition-all active:scale-95"
+          >
+            <i class="fa-brands fa-whatsapp text-lg"></i>
+            <span>Abrir WhatsApp Ahora</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT: LÓGICA COMPLETA DE NEGOCIO, INTERACCIÓN Y EXCELJS -->
+  <script>
+    // 1. DATOS INICIALES
+    const INITIAL_STUDENTS = [
+      {
+        id: 'alu-01',
+        name: 'Valentina Rossi',
+        phone: '+54 9 11 4589 1234',
+        rawPhone: '5491145891234',
+        level: '1° Trimestre (Agentes IA)',
+        modality: 'Virtual',
+        cost: 45000,
+        status: 'Pagado',
+        enrolledDate: '2026-01-15',
+        notes: 'Desarrollando un agente de soporte para e-commerce con LangChain.'
+      },
+      {
+        id: 'alu-02',
+        name: 'Mateo Benítez',
+        phone: '+54 9 341 678 9900',
+        rawPhone: '5493416789900',
+        level: 'Período 2 (Prompts & Workflows)',
+        modality: 'Presencial',
+        cost: 55000,
+        status: 'Pendiente',
+        enrolledDate: '2026-02-01',
+        notes: 'Interesado en automatizaciones con Make y modelos LLM para finanzas.'
+      },
+      {
+        id: 'alu-03',
+        name: 'Sofía Albarracín',
+        phone: '+54 9 351 234 5678',
+        rawPhone: '5493512345678',
+        level: '2° Trimestre (Modelos & RAG Avanzado)',
+        modality: 'Virtual',
+        cost: 65000,
+        status: 'Pagado',
+        enrolledDate: '2025-11-10',
+        notes: 'Tesis final: Asistente médico con base de conocimiento vectorial.'
+      },
+      {
+        id: 'alu-04',
+        name: 'Lucas Giannini',
+        phone: '+54 9 11 8765 4321',
+        rawPhone: '5491187654321',
+        level: 'Período 1 (Fundamentos IA)',
+        modality: 'Presencial',
+        cost: 50000,
+        status: 'Pendiente',
+        enrolledDate: '2026-02-18',
+        notes: 'Iniciando en generación de imágenes y prompts estructurados.'
+      },
+      {
+        id: 'alu-05',
+        name: 'Camila Méndez',
+        phone: '+54 9 261 445 6789',
+        rawPhone: '5492614456789',
+        level: '1° Trimestre (Agentes IA)',
+        modality: 'Virtual',
+        cost: 45000,
+        status: 'Pagado',
+        enrolledDate: '2026-01-20',
+        notes: 'Integrando automatizaciones de WhatsApp con IA para clínica médica.'
+      }
+    ];
+
+    // Estado Global de la Aplicación
+    let students = [];
+    let currentView = 'table'; // 'table' | 'cards'
+    let searchQuery = '';
+    let filterLevel = 'Todos';
+    let filterModality = 'Todos';
+    let filterStatus = 'Todos';
+
+    // Variables de Modal de WhatsApp
+    let selectedWhatsAppStudent = null;
+    let selectedTemplate = 'reminder';
+
+    // Cargar datos
+    function loadStudents() {
+      try {
+        const saved = localStorage.getItem('ai_students_data_v2');
+        students = saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+      } catch (e) {
+        students = INITIAL_STUDENTS;
+      }
+    }
+
+    // Guardar datos
+    function saveStudents() {
+      try {
+        localStorage.setItem('ai_students_data_v2', JSON.stringify(students));
+      } catch (e) {
+        console.error('Error guardando en almacenamiento:', e);
+      }
+      render();
+    }
+
+    // Formatear Moneda
+    function formatCurrency(val) {
+      return new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        maximumFractionDigits: 0
+      }).format(val || 0);
+    }
+
+    // Limpiar Teléfono
+    function cleanPhone(phone) {
+      return (phone || '').replace(/[^0-9]/g, '');
+    }
+
+    // Mostrar Toast
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const isError = type === 'error';
+      const icon = isError ? 'fa-solid fa-circle-exclamation text-rose-400' : 'fa-solid fa-circle-check text-emerald-400';
+      
+      toast.className = `flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl bg-slate-900 border border-slate-700 text-white pointer-events-auto transition-all transform translate-y-2 opacity-0 duration-300`;
+      toast.innerHTML = `
+        <i class="${icon} text-base shrink-0"></i>
+        <span class="text-sm font-medium">${message}</span>
+      `;
+
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 50);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Obtener Alumnos Filtrados
+    function getFilteredStudents() {
+      return students.filter(s => {
+        const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            s.phone.includes(searchQuery) ||
+                            (s.notes && s.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        const matchLevel = filterLevel === 'Todos' || s.level === filterLevel;
+        const matchModality = filterModality === 'Todos' || s.modality === filterModality;
+        const matchStatus = filterStatus === 'Todos' || s.status === filterStatus;
+
+        return matchSearch && matchLevel && matchModality && matchStatus;
+      });
+    }
+
+    // Calcular Métricas y Actualizar KPIs
+    function updateKPIs() {
+      const totalStudents = students.length;
+      const totalRevenue = students.reduce((sum, s) => sum + (Number(s.cost) || 0), 0);
+      const collectedRevenue = students.filter(s => s.status === 'Pagado').reduce((sum, s) => sum + (Number(s.cost) || 0), 0);
+      const pendingRevenue = totalRevenue - collectedRevenue;
+      const paidCount = students.filter(s => s.status === 'Pagado').length;
+      const virtualCount = students.filter(s => s.modality === 'Virtual').length;
+      const presencialCount = students.filter(s => s.modality === 'Presencial').length;
+
+      const rate = totalRevenue > 0 ? Math.round((collectedRevenue / totalRevenue) * 100) : 0;
+      const avgTicket = totalStudents > 0 ? Math.round(totalRevenue / totalStudents) : 0;
+
+      // Actualizar DOM
+      document.getElementById('kpi-total-revenue').innerText = formatCurrency(totalRevenue);
+      document.getElementById('kpi-avg-ticket').innerText = `Ticket Promedio: ${formatCurrency(avgTicket)}/alumno`;
+      document.getElementById('kpi-collected-revenue').innerText = formatCurrency(collectedRevenue);
+      document.getElementById('kpi-progress-bar').style.width = `${rate}%`;
+      document.getElementById('kpi-rate-text').innerText = `${rate}% cobrado`;
+      document.getElementById('kpi-pending-revenue').innerText = `Pendiente: ${formatCurrency(pendingRevenue)}`;
+      document.getElementById('kpi-total-students').innerText = totalStudents;
+      document.getElementById('kpi-paid-count').innerText = `${paidCount} al día con la cuota`;
+
+      const vPercent = totalStudents > 0 ? Math.round((virtualCount / totalStudents) * 100) : 0;
+      const pPercent = totalStudents > 0 ? Math.round((presencialCount / totalStudents) * 100) : 0;
+      document.getElementById('kpi-virtual-count').innerText = `${virtualCount} (${vPercent}%)`;
+      document.getElementById('kpi-presencial-count').innerText = `${presencialCount} (${pPercent}%)`;
+    }
+
+    // Render Principal
+    function render() {
+      updateKPIs();
+      const filtered = getFilteredStudents();
+      const container = document.getElementById('students-container');
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-12 text-center">
+            <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-500 text-xl">
+              <i class="fa-solid fa-user-slash"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white">No se encontraron alumnos</h3>
+            <p class="text-sm text-slate-400 mt-1 max-w-md mx-auto">
+              No hay alumnos que coincidan con la búsqueda o los filtros seleccionados.
+            </p>
+            <button onclick="clearAllFilters()" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-xl text-xs font-semibold transition-colors">
+              Restablecer Filtros
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      if (currentView === 'table') {
+        renderTableView(filtered, container);
+      } else {
+        renderCardsView(filtered, container);
+      }
+    }
+
+    // Render Vista de Tabla
+    function renderTableView(items, container) {
+      container.innerHTML = `
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="bg-slate-950/80 text-xs uppercase font-bold text-slate-400 border-b border-slate-800 tracking-wider">
+                <tr>
+                  <th class="py-4 px-5">Alumno</th>
+                  <th class="py-4 px-4">WhatsApp Directo</th>
+                  <th class="py-4 px-4">Nivel IA</th>
+                  <th class="py-4 px-4">Modalidad</th>
+                  <th class="py-4 px-4">Cuota Mensual</th>
+                  <th class="py-4 px-4">Estado</th>
+                  <th class="py-4 px-5 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60">
+                ${items.map(s => {
+                  const initials = s.name.split(' ').map(n => n[0]).slice(0, 2).join('');
+                  const isPaid = s.status === 'Pagado';
+                  return `
+                    <tr class="hover:bg-slate-800/40 transition-colors group">
+                      <td class="py-4 px-5">
+                        <div class="flex items-center gap-3">
+                          <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-700 to-cyan-600 flex items-center justify-center font-bold text-white text-xs shadow-md shrink-0">
+                            ${initials}
+                          </div>
+                          <div>
+                            <div class="font-bold text-white group-hover:text-indigo-300 transition-colors">${s.name}</div>
+                            <div class="text-xs text-slate-500 line-clamp-1 max-w-xs">${s.notes || 'Sin observaciones'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="py-4 px-4">
+                        <button
+                          onclick="openWhatsAppModal('${s.id}')"
+                          class="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                          title="Abrir WhatsApp Directo"
+                        >
+                          <i class="fa-brands fa-whatsapp text-sm"></i>
+                          <span>${s.phone}</span>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-60"></i>
+                        </button>
+                      </td>
+                      <td class="py-4 px-4">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                          <i class="fa-solid fa-brain text-[11px] text-indigo-400"></i>
+                          ${s.level}
+                        </span>
+                      </td>
+                      <td class="py-4 px-4">
+                        ${s.modality === 'Virtual' 
+                          ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"><i class="fa-solid fa-laptop text-[11px]"></i> Virtual</span>`
+                          : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30"><i class="fa-solid fa-building text-[11px]"></i> Presencial</span>`
+                        }
+                      </td>
+                      <td class="py-4 px-4 font-bold text-white">
+                        ${formatCurrency(s.cost)}
+                      </td>
+                      <td class="py-4 px-4">
+                        <button
+                          onclick="togglePayment('${s.id}')"
+                          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                            isPaid 
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30' 
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                          }"
+                          title="Clic para cambiar estado de pago"
+                        >
+                          <i class="${isPaid ? 'fa-solid fa-circle-check text-emerald-400' : 'fa-regular fa-clock text-amber-400'} text-xs"></i>
+                          <span>${s.status}</span>
+                        </button>
+                      </td>
+                      <td class="py-4 px-5 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                          <button
+                            onclick="editStudent('${s.id}')"
+                            class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                            title="Editar Alumno"
+                          >
+                            <i class="fa-solid fa-pen-to-square"></i>
+                          </button>
+                          <button
+                            onclick="deleteStudent('${s.id}')"
+                            class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                            title="Eliminar Alumno"
+                          >
+                            <i class="fa-solid fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render Vista de Cuadrícula / Tarjetas
+    function renderCardsView(items, container) {
+      container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          ${items.map(s => {
+            const initials = s.name.split(' ').map(n => n[0]).slice(0, 2).join('');
+            const isPaid = s.status === 'Pagado';
+            return `
+              <div class="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 shadow-xl transition-all flex flex-col justify-between space-y-4">
+                <div>
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                      <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center font-bold text-white text-sm shadow-md">
+                        ${initials}
+                      </div>
+                      <div>
+                        <h4 class="font-bold text-white text-base leading-tight">${s.name}</h4>
+                        <span class="text-[11px] text-slate-400">Ingreso: ${s.enrolledDate || '2026'}</span>
+                      </div>
+                    </div>
+                    <button
+                      onclick="togglePayment('${s.id}')"
+                      class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        isPaid ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      }"
+                    >
+                      ${s.status}
+                    </button>
+                  </div>
+
+                  <div class="mt-4 space-y-2">
+                    <div class="flex items-center gap-2 text-xs text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl font-medium">
+                      <i class="fa-solid fa-brain text-indigo-400"></i>
+                      <span class="truncate">${s.level}</span>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
+                      <span class="flex items-center gap-1.5">
+                        ${s.modality === 'Virtual' ? '<i class="fa-solid fa-laptop text-cyan-400"></i>' : '<i class="fa-solid fa-building text-purple-400"></i>'}
+                        Modalidad ${s.modality}
+                      </span>
+                      <span class="font-bold text-slate-200 text-sm">${formatCurrency(s.cost)}</span>
+                    </div>
+
+                    ${s.notes ? `<p class="text-xs text-slate-400 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 italic">"${s.notes}"</p>` : ''}
+                  </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <button
+                    onclick="openWhatsAppModal('${s.id}')"
+                    class="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
+                  >
+                    <i class="fa-brands fa-whatsapp text-sm"></i>
+                    <span>WhatsApp</span>
+                  </button>
+                  <div class="flex items-center gap-1">
+                    <button onclick="editStudent('${s.id}')" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-colors">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button onclick="deleteStudent('${s.id}')" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // Alternar Estado de Pago
+    function togglePayment(id) {
+      const student = students.find(s => s.id === id);
+      if (student) {
+        student.status = student.status === 'Pagado' ? 'Pendiente' : 'Pagado';
+        saveStudents();
+        showToast(`Estado de ${student.name} actualizado a "${student.status}"`);
+      }
+    }
+
+    // Eliminar Alumno
+    function deleteStudent(id) {
+      const student = students.find(s => s.id === id);
+      if (student && confirm(`¿Estás seguro de eliminar al alumno ${student.name}?`)) {
+        students = students.filter(s => s.id !== id);
+        saveStudents();
+        showToast(`Alumno ${student.name} eliminado.`);
+      }
+    }
+
+    // Búsqueda y Filtros
+    function handleSearch(val) {
+      searchQuery = val;
+      const clearBtn = document.getElementById('clear-search-btn');
+      if (val) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+      render();
+    }
+
+    function clearSearch() {
+      document.getElementById('search-input').value = '';
+      searchQuery = '';
+      document.getElementById('clear-search-btn').classList.add('hidden');
+      render();
+    }
+
+    function handleFilterChange() {
+      filterLevel = document.getElementById('filter-level').value;
+      filterModality = document.getElementById('filter-modality').value;
+      filterStatus = document.getElementById('filter-status').value;
+      render();
+    }
+
+    function clearAllFilters() {
+      clearSearch();
+      document.getElementById('filter-level').value = 'Todos';
+      document.getElementById('filter-modality').value = 'Todos';
+      document.getElementById('filter-status').value = 'Todos';
+      filterLevel = 'Todos';
+      filterModality = 'Todos';
+      filterStatus = 'Todos';
+      render();
+    }
+
+    // Cambiar Vista (Tabla vs Cards)
+    function switchView(view) {
+      currentView = view;
+      const tblBtn = document.getElementById('view-table-btn');
+      const crdBtn = document.getElementById('view-cards-btn');
+
+      if (view === 'table') {
+        tblBtn.className = 'p-2 rounded-lg bg-indigo-600 text-white shadow-md transition-all text-xs flex items-center justify-center w-8 h-8';
+        crdBtn.className = 'p-2 rounded-lg text-slate-400 hover:text-white transition-all text-xs flex items-center justify-center w-8 h-8';
+      } else {
+        crdBtn.className = 'p-2 rounded-lg bg-indigo-600 text-white shadow-md transition-all text-xs flex items-center justify-center w-8 h-8';
+        tblBtn.className = 'p-2 rounded-lg text-slate-400 hover:text-white transition-all text-xs flex items-center justify-center w-8 h-8';
+      }
+      render();
+    }
+
+    // ==================== MODAL DE ALUMNO ====================
+    function openStudentModal(id = null) {
+      const modal = document.getElementById('student-modal');
+      const title = document.getElementById('modal-form-title');
+      
+      if (id) {
+        const student = students.find(s => s.id === id);
+        if (!student) return;
+        title.innerText = 'Editar Alumno de IA';
+        document.getElementById('form-student-id').value = student.id;
+        document.getElementById('form-name').value = student.name;
+        document.getElementById('form-phone').value = student.phone;
+        document.getElementById('form-level').value = student.level;
+        document.getElementById('form-modality').value = student.modality;
+        document.getElementById('form-cost').value = student.cost;
+        document.getElementById('form-status').value = student.status;
+        document.getElementById('form-notes').value = student.notes || '';
+      } else {
+        title.innerText = 'Registrar Nuevo Alumno de IA';
+        document.getElementById('student-form').reset();
+        document.getElementById('form-student-id').value = '';
+        document.getElementById('form-cost').value = '45000';
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeStudentModal() {
+      const modal = document.getElementById('student-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function editStudent(id) {
+      openStudentModal(id);
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('form-student-id').value;
+      const name = document.getElementById('form-name').value.trim();
+      const phone = document.getElementById('form-phone').value.trim();
+      const level = document.getElementById('form-level').value;
+      const modality = document.getElementById('form-modality').value;
+      const cost = Number(document.getElementById('form-cost').value) || 0;
+      const status = document.getElementById('form-status').value;
+      const notes = document.getElementById('form-notes').value.trim();
+
+      if (!name || !phone) {
+        showToast('Por favor completa el nombre y teléfono.', 'error');
+        return;
+      }
+
+      const rawPhone = cleanPhone(phone);
+
+      if (id) {
+        students = students.map(s => s.id === id ? { ...s, name, phone, rawPhone, level, modality, cost, status, notes } : s);
+        showToast('Datos del alumno actualizados.');
+      } else {
+        const newStudent = {
+          id: 'alu-' + Date.now(),
+          name,
+          phone,
+          rawPhone,
+          level,
+          modality,
+          cost,
+          status,
+          notes,
+          enrolledDate: new Date().toISOString().split('T')[0]
+        };
+        students.unshift(newStudent);
+        showToast('¡Nuevo alumno registrado con éxito!');
+      }
+
+      saveStudents();
+      closeStudentModal();
+    }
+
+    // ==================== MODAL DE WHATSAPP ====================
+    function generateWhatsAppMessage(student, templateType, customSnippet = '') {
+      if (!student) return '';
+      const firstName = student.name.split(' ')[0];
+
+      switch (templateType) {
+        case 'reminder':
+          return `Hola *${firstName}*, ¿cómo estás? 👋 Te escribo de la Academia de Inteligencia Artificial. Te recordamos el detalle de tu cuota mensual correspondiente al curso de *${student.level}* (${student.modality}) por un valor de *${formatCurrency(student.cost)}*. Quedamos a disposición para cualquier consulta. ¡Muchas gracias! 🚀`;
+        
+        case 'class_access':
+          return `¡Hola *${firstName}*! 🤖 Recordatorio de tu clase de *${student.level}* (Modalidad: *${student.modality}*). Recuerda tener listos tus entornos de IA y notebooks para la sesión de hoy. ¡Nos vemos en breve!`;
+        
+        case 'project_feedback':
+          return `Hola *${firstName}* 💡 Estuvimos revisando tu avance en *${student.level}*. Tienes un gran progreso en tus proyectos de Inteligencia Artificial. ¿Tienes alguna duda técnica o consulta que quieras que veamos en la próxima sesión?`;
+        
+        case 'custom':
+          return customSnippet ? `Hola *${firstName}*! ${customSnippet}` : `Hola *${firstName}*, te escribo desde la Academia de IA.`;
+        
+        default:
+          return `Hola *${firstName}*, un saludo cordial desde la Academia de IA.`;
+      }
+    }
+
+    function openWhatsAppModal(studentId) {
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+      selectedWhatsAppStudent = student;
+      selectedTemplate = 'reminder';
+
+      document.getElementById('wa-modal-name').innerText = `WhatsApp a ${student.name}`;
+      document.getElementById('wa-modal-phone').innerText = student.phone;
+      document.getElementById('wa-custom-text').value = '';
+      
+      selectTemplate('reminder');
+
+      const modal = document.getElementById('whatsapp-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeWhatsAppModal() {
+      const modal = document.getElementById('whatsapp-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function selectTemplate(templateType) {
+      selectedTemplate = templateType;
+      const templates = ['reminder', 'class_access', 'project_feedback', 'custom'];
+      
+      templates.forEach(t => {
+        const btn = document.getElementById(`tpl-btn-${t}`);
+        if (t === templateType) {
+          btn.className = 'p-2.5 rounded-xl border text-left text-xs font-semibold transition-all bg-emerald-500/20 border-emerald-500/50 text-emerald-300';
+        } else {
+          btn.className = 'p-2.5 rounded-xl border text-left text-xs font-semibold transition-all bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200';
+        }
+      });
+
+      const customContainer = document.getElementById('custom-text-container');
+      if (templateType === 'custom') {
+        customContainer.classList.remove('hidden');
+      } else {
+        customContainer.classList.add('hidden');
+      }
+
+      updatePreviewMessage();
+    }
+
+    function updatePreviewMessage() {
+      const customText = document.getElementById('wa-custom-text').value;
+      const msg = generateWhatsAppMessage(selectedWhatsAppStudent, selectedTemplate, customText);
+      document.getElementById('wa-preview-text').innerText = msg;
+    }
+
+    function sendWhatsAppDirect() {
+      if (!selectedWhatsAppStudent) return;
+      const raw = cleanPhone(selectedWhatsAppStudent.phone);
+      if (!raw) {
+        showToast('El alumno no tiene un número de teléfono válido.', 'error');
+        return;
+      }
+      const customText = document.getElementById('wa-custom-text').value;
+      const message = generateWhatsAppMessage(selectedWhatsAppStudent, selectedTemplate, customText);
+      const url = `https://wa.me/${raw}?text=${encodeURIComponent(message)}`;
+      
+      window.open(url, '_blank');
+      closeWhatsAppModal();
+    }
+
+    // ==================== EXPORTACIÓN A EXCEL IDÉNTICO & FUNCIONAL (ExcelJS) ====================
+    async function exportToExcel() {
+      const btn = document.getElementById('btn-export-excel');
+      const icon = document.getElementById('export-icon');
+      
+      try {
+        btn.disabled = true;
+        icon.className = 'fa-solid fa-spinner fa-spin text-emerald-400';
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Academia de Inteligencia Artificial';
+        workbook.created = new Date();
+
+        const worksheet = workbook.addWorksheet('Dashboard Alumnos IA', {
+          views: [{ showGridLines: true }]
+        });
+
+        // 1. Título Corporativo
+        worksheet.mergeCells('A1:H1');
+        const mainTitle = worksheet.getCell('A1');
+        mainTitle.value = 'ACADEMIA DE INTELIGENCIA ARTIFICIAL - PANEL DE CONTROL & FACTURACIÓN';
+        mainTitle.font = { name: 'Segoe UI', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+        mainTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+        mainTitle.alignment = { vertical: 'middle', horizontal: 'center' };
+        worksheet.getRow(1).height = 40;
+
+        worksheet.mergeCells('A2:H2');
+        const subTitle = worksheet.getCell('A2');
+        subTitle.value = `Reporte Generado el ${new Date().toLocaleDateString('es-AR')} | Total Alumnos: ${students.length}`;
+        subTitle.font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF94A3B8' } };
+        subTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+        subTitle.alignment = { vertical: 'middle', horizontal: 'center' };
+        worksheet.getRow(2).height = 22;
+
+        worksheet.addRow([]); // Fila vacía
+
+        // 2. Tarjetas KPI Estilizadas (Idénticas al Dashboard)
+        worksheet.getCell('B4').value = 'FACTURACIÓN TOTAL';
+        worksheet.getCell('C4').value = 'COBRADO (AL DÍA)';
+        worksheet.getCell('D4').value = 'POR COBRAR (PENDIENTE)';
+        worksheet.getCell('E4').value = 'ALUMNOS VIRTUALES';
+        worksheet.getCell('F4').value = 'ALUMNOS PRESENCIALES';
+        worksheet.getCell('G4').value = 'TASA DE COBRO';
+
+        ['B4', 'C4', 'D4', 'E4', 'F4', 'G4'].forEach(cellRef => {
+          const c = worksheet.getCell(cellRef);
+          c.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+          c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          c.border = {
+            top: { style: 'thin', color: { argb: 'FF475569' } },
+            left: { style: 'thin', color: { argb: 'FF475569' } },
+            bottom: { style: 'thin', color: { argb: 'FF475569' } },
+            right: { style: 'thin', color: { argb: 'FF475569' } }
+          };
+        });
+
+        // Calcular Métricas
+        const totalRevenue = students.reduce((sum, s) => sum + (Number(s.cost) || 0), 0);
+        const collectedRevenue = students.filter(s => s.status === 'Pagado').reduce((sum, s) => sum + (Number(s.cost) || 0), 0);
+        const pendingRevenue = totalRevenue - collectedRevenue;
+        const virtualCount = students.filter(s => s.modality === 'Virtual').length;
+        const presencialCount = students.filter(s => s.modality === 'Presencial').length;
+        const rate = totalRevenue > 0 ? Math.round((collectedRevenue / totalRevenue) * 100) : 0;
+
+        worksheet.getCell('B5').value = totalRevenue;
+        worksheet.getCell('B5').numFmt = '"$"#,##0';
+        worksheet.getCell('B5').font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FF38BDF8' } };
+
+        worksheet.getCell('C5').value = collectedRevenue;
+        worksheet.getCell('C5').numFmt = '"$"#,##0';
+        worksheet.getCell('C5').font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FF22C55E' } };
+
+        worksheet.getCell('D5').value = pendingRevenue;
+        worksheet.getCell('D5').numFmt = '"$"#,##0';
+        worksheet.getCell('D5').font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFF59E0B' } };
+
+        worksheet.getCell('E5').value = virtualCount;
+        worksheet.getCell('E5').font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FF818CF8' } };
+
+        worksheet.getCell('F5').value = presencialCount;
+        worksheet.getCell('F5').font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFA78BFA' } };
+
+        worksheet.getCell('G5').value = `${rate}%`;
+        worksheet.getCell('G5').font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
+
+        ['B5', 'C5', 'D5', 'E5', 'F5', 'G5'].forEach(cellRef => {
+          const c = worksheet.getCell(cellRef);
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+          c.alignment = { vertical: 'middle', horizontal: 'center' };
+          c.border = {
+            top: { style: 'thin', color: { argb: 'FF475569' } },
+            left: { style: 'thin', color: { argb: 'FF475569' } },
+            bottom: { style: 'medium', color: { argb: 'FF38BDF8' } },
+            right: { style: 'thin', color: { argb: 'FF475569' } }
+          };
+        });
+
+        worksheet.getRow(4).height = 24;
+        worksheet.getRow(5).height = 30;
+
+        worksheet.addRow([]);
+        worksheet.addRow([]);
+
+        // 3. Cabeceras de Tabla
+        const headers = [
+          '#',
+          'ALUMNO',
+          'WHATSAPP (CLIC DIRECTO)',
+          'NIVEL DE INTELIGENCIA ARTIFICIAL',
+          'MODALIDAD',
+          'ESTADO DE PAGO',
+          'CUOTA MENSUAL ($)',
+          'NOTAS & OBJETIVO IA'
+        ];
+
+        const headerRowIndex = 8;
+        const headerRow = worksheet.getRow(headerRowIndex);
+        headerRow.values = headers;
+        headerRow.height = 30;
+
+        headerRow.eachCell(cell => {
+          cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.border = {
+            top: { style: 'medium', color: { argb: 'FF3730A3' } },
+            bottom: { style: 'medium', color: { argb: 'FF3730A3' } }
+          };
+        });
+
+        // 4. Filas de Alumnos con Enlaces Clickeables de WhatsApp
+        students.forEach((s, idx) => {
+          const rowIndex = headerRowIndex + 1 + idx;
+          const row = worksheet.getRow(rowIndex);
+          const raw = cleanPhone(s.phone);
+
+          row.values = [
+            idx + 1,
+            s.name,
+            s.phone,
+            s.level,
+            s.modality,
+            s.status,
+            Number(s.cost) || 0,
+            s.notes || '-'
+          ];
+          row.height = 26;
+
+          const isEven = idx % 2 === 0;
+          const bgArgb = isEven ? 'FFF8FAFC' : 'FFFFFFFF';
+
+          row.eachCell(cell => {
+            cell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF0F172A' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } };
+            cell.border = {
+              bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          });
+
+          row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+          row.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
+          row.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
+
+          // Hipervínculo a WhatsApp en Excel
+          const phoneCell = row.getCell(3);
+          phoneCell.value = {
+            text: `📲 ${s.phone}`,
+            hyperlink: `https://wa.me/${raw}`,
+            tooltip: 'Abrir conversación en WhatsApp'
+          };
+          phoneCell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF059669' }, underline: true, bold: true };
+          phoneCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+          // Estado de Pago Badge
+          const statusCell = row.getCell(6);
+          statusCell.alignment = { vertical: 'middle', horizontal: 'center' };
+          if (s.status === 'Pagado') {
+            statusCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF15803D' } };
+            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+          } else {
+            statusCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFB45309' } };
+            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+          }
+
+          // Formato Monetario
+          const costCell = row.getCell(7);
+          costCell.numFmt = '"$"#,##0';
+          costCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF1E293B' } };
+          costCell.alignment = { vertical: 'middle', horizontal: 'right' };
+        });
+
+        // 5. Fila de Total Acumulado con Fórmula Real de Excel (=SUMA)
+        const lastDataRow = headerRowIndex + students.length;
+        const totalRowIndex = lastDataRow + 1;
+        const totalRow = worksheet.getRow(totalRowIndex);
+        totalRow.height = 32;
+
+        worksheet.mergeCells(`A${totalRowIndex}:F${totalRowIndex}`);
+        const totalLabel = worksheet.getCell(`A${totalRowIndex}`);
+        totalLabel.value = 'TOTAL FACTURACIÓN MENSUAL ACUMULADA:';
+        totalLabel.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        totalLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+        totalLabel.alignment = { vertical: 'middle', horizontal: 'right' };
+
+        const sumFormulaCell = worksheet.getCell(`G${totalRowIndex}`);
+        sumFormulaCell.value = { formula: `SUM(G${headerRowIndex + 1}:G${lastDataRow})`, result: totalRevenue };
+        sumFormulaCell.numFmt = '"$"#,##0';
+        sumFormulaCell.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: 'FF38BDF8' } };
+        sumFormulaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+        sumFormulaCell.alignment = { vertical: 'middle', horizontal: 'right' };
+
+        const emptyEnd = worksheet.getCell(`H${totalRowIndex}`);
+        emptyEnd.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+
+        // Ajuste de Ancho de Columnas
+        worksheet.columns = [
+          { key: 'id', width: 6 },
+          { key: 'name', width: 26 },
+          { key: 'phone', width: 24 },
+          { key: 'level', width: 34 },
+          { key: 'modality', width: 16 },
+          { key: 'status', width: 18 },
+          { key: 'cost', width: 24 },
+          { key: 'notes', width: 45 }
+        ];
+
+        // Descarga del Archivo .XLSX
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Dashboard_Academia_IA_${new Date().toISOString().split('T')[0]}.xlsx`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+
+        showToast('¡Excel generado y descargado exitosamente!');
+      } catch (err) {
+        console.error(err);
+        showToast('Error al exportar el Excel.', 'error');
+      } finally {
+        btn.disabled = false;
+        icon.className = 'fa-solid fa-file-excel text-emerald-400';
+      }
+    }
+
+    // Inicialización al cargar la página
+    window.onload = function() {
+      loadStudents();
+      render();
+    };
+  </script>
+</body>
+</html>
